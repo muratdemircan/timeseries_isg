@@ -4,12 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-from keras import Sequential
-from keras.layers import Dense
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.metrics import mean_squared_error
-from keras import layers
-from keras import Input
 import math
 
 
