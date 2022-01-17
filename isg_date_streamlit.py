@@ -212,7 +212,7 @@ with dataset:
 
     #Dataset alınırken hepsi string olarak alındı. Streamlit 1.3 versiyonundan kaynaklı bir numpy kütüphanesinden hata alınıyordu
 
-    df = pd.read_excel(r"data\kaza_date.xlsx").astype(str)
+    df = pd.read_excel("kaza_date.xlsx").astype(str)
     st.write(df.head())
 
     st.markdown("Dataseti aylık olarak yeniden oluşturduk")
@@ -252,7 +252,7 @@ from keras.models import load_model
 
 with visualize_model:
     # load model
-    model = load_model('models\isg_time.h5')
+    model = load_model('isg_time.h5')
     # summarize model.
     model.summary()
 
