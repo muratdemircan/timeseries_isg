@@ -1,1 +1,1 @@
-web: sh setup.sh && streamlit run isg_date_streamlit.py
+web: sh setup.sh && streamlit run --server.port $PORT isg_date_streamlit.py
