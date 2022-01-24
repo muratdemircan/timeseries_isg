@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-# import seaborn as sns
+import seaborn as sns
 
 from keras import Sequential
 from keras.layers import Dense
@@ -12,7 +12,7 @@ from keras import layers
 from keras import Input
 import math
 
-# streamlit run isg_test.py
+# streamlit run isg_data_streamlit_published.py
 
 def get_first_time(col):
     t = ""
@@ -21,6 +21,8 @@ def get_first_time(col):
     except Exception as e:
 
         print(t, "{}, {} hatasi".format(t, str(e)))
+        t = "00:00:00"
+    if t == "nan:00":
         t = "00:00:00"
     return t
 
@@ -55,9 +57,8 @@ rename_columns = {
 
 def create_montly_table(df, rename_columns):
     # df.drop(["No", "Proje-No", "Proje-Ay-Yıl", "İl-Kaza Tarihi"], axis=1, inplace=True)
-    df["Saat"] = df["Saat"].apply(get_first_time)
-    df["Tarih"] = pd.to_datetime(df["Tarih"])
-    df["Tarih"] = df["Tarih"].dt.strftime('%d-%m-%Y')
+
+
     df.rename(columns=rename_columns, inplace=True)
     df['date'] = pd.to_datetime(df.tarih) - pd.offsets.MonthEnd(0) - pd.offsets.MonthBegin(1)
     df = df[["date"]]
@@ -157,8 +158,8 @@ def visualize_results(scaler, trainPredict, testPredict, month_df):
     test_pre_df = pd.DataFrame(testPredictPlot, index=month_df.index, columns=["Test"])
     # st.write(test_pre_df.head())
     # st.line_chart(test_pre_df["values"])
-
-    st.write("İSG Aylık Kaza Sayılarının çalışıldığı zaman bazlı training ve test datasetlerinin görüntülenmesi")
+    st.header("ML Model sonucu")
+    st.write("İSG Aylık Kaza Sayılarının zaman bazlı train ve test sonuçlarının tahmin edildi, Kaza Sayısı gerçek değeri ile karşılaştırıldı.")
 
     predictions = pd.concat([dt, train_pre_df, test_pre_df], axis = 1)
     # st.write(predictions.head())
@@ -204,33 +205,71 @@ visualize_model = st.container()
 
 with header:
     st.title("İSG Kaza Tahminleme Projesi")
-    st.text("Bu projede kaza sayılarının tahminlemesi gerçekleştirilecektir")
+    st.text("Deep Learning Algoritmaları kullanılarak, projelerde gelecek 12 ay içerisinde\n toplamda kaç adet kaza olacağı tahmin edilmiştir.  ")
 
 with dataset:
-    st.header("Kaza Kayıtları dataseti")
-    st.text("Örnek dataset")
+    st.header("Kaza Kayıtları Dataseti")
+    # st.text("Örnek dataset")
 
     #Dataset alınırken hepsi string olarak alındı. Streamlit 1.3 versiyonundan kaynaklı bir numpy kütüphanesinden hata alınıyordu
 
     df = pd.read_excel("kaza_date.xlsx").astype(str)
     st.write(df.head())
 
-    st.markdown("Dataseti aylık olarak yeniden oluşturduk")
+    # st.markdown("Dataseti aylık olarak yeniden oluşturduk")
+
+    df["Saat"] = df["Saat"].apply(get_first_time)
+    df["Tarih"] = pd.to_datetime(df["Tarih"])
+    df["Tarih"] = df["Tarih"].dt.strftime('%d-%m-%Y')
+
+    df["timestamp"] = pd.to_datetime(df["Tarih"] + " " + df["Saat"])
+    df['hours'] = df['timestamp'].dt.hour
+    df['daylight'] = ((df['hours'] >= 7) & (df['hours'] <= 22)).astype(int)
+    df['DayOfTheWeek'] = df['timestamp'].dt.dayofweek
+    df['WeekDay'] = (df['DayOfTheWeek'] < 5).astype(int)
+    df["year"] = df["timestamp"].dt.year
+    df["month"] = df["timestamp"].dt.month
+
+
+    # ANALYSIS
+
+    st.header("Hava Durumuna Göre Kaza Sayılarının Olma Sıklığı")
+    st.set_option('deprecation.showPyplotGlobalUse', False)
+    fig = plt.subplots()
+    ax = sns.countplot(x='Hava Durumu', hue='Targets', data=df)
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=70)
+    st.pyplot()
+
+    st.header("Hangi zaman Aralıklarında İSG Kazası ile Karşılaşılıyor")
+    st.set_option('deprecation.showPyplotGlobalUse', False)
+    fig = plt.subplots()
+    df[['hours', 'daylight', 'DayOfTheWeek', 'WeekDay', "year", "month"]].hist(figsize=(20, 8))
+    st.pyplot()
+
+    st.header("Proje Koduna Göre Geçmiş Projelerdeki İSG Kazaların Sayısı")
+    st.set_option('deprecation.showPyplotGlobalUse', False)
+    fig = plt.subplots()
+    ax = sns.countplot(x='Proje', hue='Targets', data=df)
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=70)
+    st.pyplot()
+
+
+    # END OF GRAPHIC ANALYSIS
 
     month_df = create_montly_table(df, rename_columns)
-    arr = np.random.normal(1, 1, size=100)
+    # arr = np.random.normal(1, 1, size=100)
     # fig, ax = plt.subplots()
     # ax.plot(month_df["value"])
     # st.pyplot(fig)
 
     # Zaman bazlı toplam kaza sayılarının görüntülenmesi
-    st.line_chart(month_df["value"])
+    # st.line_chart(month_df["value"])
 
 
 
 
 with model_training:
-    st.header("Time to train the model")
+    st.header("Yapay Zeka Modeli ile Aylık Kaza Hesaplamasının Yapılması")
     # Scalar process
     dataset, scaler = process_scalar(month_df)
 
@@ -275,7 +314,7 @@ with visualize_model:
     st.write("Aylık İSG kazalarının sayısı alınmıştır. ML model çalışmasında önceki 7 ay kaza sayıları dikkate alınarak model çalışması gereçekleştirilmiştir.")
     model_test = visualize_results(scaler, trainPredict, testPredict, month_df)
 
-    n_month_for_forecast = 24
+    n_month_for_forecast = 12
 
     predict_period_dates = pd.date_range(month_df.index[-1], periods=n_month_for_forecast, freq='MS').tolist()
     predict_period_dates = predict_period_dates
