@@ -17,13 +17,12 @@ import math
 def get_first_time(col):
     t = ""
     try:
-        t = col.split("-")[0].strip() + ":00"
+        t = int(col.split("-")[0].strip().split(":")[0])
     except Exception as e:
 
         print(t, "{}, {} hatasi".format(t, str(e)))
-        t = "00:00:00"
-    if t == "nan:00":
-        t = "00:00:00"
+        t = 0
+
     return t
 
 def process_scalar(month_df):
@@ -34,39 +33,18 @@ def process_scalar(month_df):
     return dataset, scaler
 
 
-rename_columns = {
-    "Proje": "proje",
-    "Tarih": "tarih",
-    "Ana Faaliyet Alanı": "faaliyet_alan",
-    "Kök Sebep": "sebep",
-    "Olay Tipi": "tip",
-    "Yüklenici_Altyüklenici": "yuklenici",
-    "Kişisel Etkenler": "etkenler",
-    "Görev": "gorev",
-    "Lokasyon": "konum",
-    "Departman": "departman",
-    "Yaşı": "yas",
-    "Projede Çalışma Süresi": "working_day",
-    "İl": "il",
-    "Gündüz Sıcaklığı": "temp",
-    "Hava Durumu": "weather",
-    "Projenin Resmi bitişine kalan süre": "last_project_days",
-    "Targets": "targets"
-
-}
-
-def create_montly_table(df, rename_columns):
-    # df.drop(["No", "Proje-No", "Proje-Ay-Yıl", "İl-Kaza Tarihi"], axis=1, inplace=True)
 
 
-    df.rename(columns=rename_columns, inplace=True)
-    df['date'] = pd.to_datetime(df.tarih) - pd.offsets.MonthEnd(0) - pd.offsets.MonthBegin(1)
-    df = df[["date"]]
-    df = df["date"].value_counts().sort_index()
-    month_df = df.to_frame()
+def create_montly_table(df):
+
+    df['date'] = pd.to_datetime(df.Tarih) - pd.offsets.MonthEnd(0) - pd.offsets.MonthBegin(1)
+    df3 = df[["date"]]
+    df3 = df3["date"].value_counts().sort_index()
+    month_df = df3.to_frame()
     month_df = month_df.reset_index()
     month_df.rename({"index": "month", "date": "value"}, axis=1, inplace=True)
     month_df.set_index("month", inplace=True)
+
     return month_df
 
 def forecast(model, last, n):
@@ -213,23 +191,23 @@ with dataset:
 
     #Dataset alınırken hepsi string olarak alındı. Streamlit 1.3 versiyonundan kaynaklı bir numpy kütüphanesinden hata alınıyordu
 
-    df = pd.read_excel("kaza_date.xlsx").astype(str)
+    df = pd.read_excel(r"data/kaza_dataset.xlsx")
     st.write(df.head())
 
+
+    month_df = create_montly_table(df)
     # st.markdown("Dataseti aylık olarak yeniden oluşturduk")
 
     df["Saat"] = df["Saat"].apply(get_first_time)
-    df["Tarih"] = pd.to_datetime(df["Tarih"])
-    df["Tarih"] = df["Tarih"].dt.strftime('%d-%m-%Y')
+    df["Tarih"] = pd.to_datetime(df["Tarih"], format='%d-%m-%Y')
+    df["timestamp"] = df["Tarih"] + pd.to_timedelta(df["Saat"], unit='h')
 
-    df["timestamp"] = pd.to_datetime(df["Tarih"] + " " + df["Saat"])
     df['hours'] = df['timestamp'].dt.hour
     df['daylight'] = ((df['hours'] >= 7) & (df['hours'] <= 22)).astype(int)
     df['DayOfTheWeek'] = df['timestamp'].dt.dayofweek
     df['WeekDay'] = (df['DayOfTheWeek'] < 5).astype(int)
     df["year"] = df["timestamp"].dt.year
     df["month"] = df["timestamp"].dt.month
-
 
     # ANALYSIS
 
@@ -254,9 +232,13 @@ with dataset:
     st.pyplot()
 
 
-    # END OF GRAPHIC ANALYSIS
 
-    month_df = create_montly_table(df, rename_columns)
+
+
+
+    # END OF GRAPHIC ANALYSIS
+    #
+    # month_df = create_montly_table(df)
     # arr = np.random.normal(1, 1, size=100)
     # fig, ax = plt.subplots()
     # ax.plot(month_df["value"])
